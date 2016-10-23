@@ -1,0 +1,185 @@
+---
+title: "One Way Analysis of Variance Exercises"
+author: "Danilo Ascione"
+date: "10/17/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Hmisc)
+library(psych)
+library(car)
+```
+
+Exercises from http://r-exercises.com/2016/09/30/one-way-analysis-of-variance-exercises/
+
+##Introduction
+"For this exercise we will use data on patients having stomach, colon, ovary, bronchus, or breast cancer. The objective of the study was to identify if the number of days a patient survived was influenced by the organ affected. Our dependent variable is Survival measured in days. Our independent variable is Organ. The data is available here http://lib.stat.cmu.edu/DASL/Datafiles/CancerSurvival.html"
+
+We want to find out if there is a statistical difference in the mean of five groups of cancers.
+
+Since we have more than two groups we cannot use the t test, so we use the ANOVA method instead.
+
+For the ANOVA results to be valid, the following assumptions need to be satisfied:
+
+1. The dependent variable is required to be continuous
+2. The independent variable is required to be categorical with or more categories.
+3. The dependent and independent variables have values for each row of data.
+4. Observations in each group are independent.
+5. The dependent variable is approximately normally distributed in each group.
+6. There is approximate equality of variance in all the groups.
+7. We should not have any outliers
+
+Our dependent variable is Survival measured in days and it is continuous, so the first assumption is satisfied. 
+
+Our independent variable is Organ: stomach, colon, ovary, bronchus, or breast. It is a categorical variable and thus also the second assumption is satisfied.
+
+## Exercise 1
+
+Load the data into R
+
+```{r}
+cancer_survival <- read.csv("cancer-survival.csv", header = TRUE)
+```
+
+## Exercise 2
+
+Create summary statistics for each organ
+
+```{r}
+
+by(cancer_survival, cancer_survival$Organ, describe)
+
+describeBy(cancer_survival, cancer_survival$Organ)
+```
+
+There are values for each row of data in both the Survival and Organ variables. The third assumption is satisfied. Since each observation represents a different patient, the fourth assumption is also satisfied. 
+
+## Exercise 3
+
+Check if we have any outliers using boxplot
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot(cancer_survival, aes(x=Organ, y=Survival, color=Organ)) +   geom_boxplot() +
+  stat_summary(fun.y = mean, geom="point", shape=4, size=4)
+```
+
+There is at least one outlier in each group, so the seventh assumption is not satisfied.
+
+### Exercise 4
+
+Check for normality using Shapiro.wilk test
+
+```{r, echo=FALSE}
+with(cancer_survival,tapply(Survival, Organ,shapiro.test))
+ggplot(cancer_survival, aes(Survival, colour=Organ)) + geom_density()
+```
+
+Only for the breast cancer group we cannot reject the hypothesis that the dependent variable is normally distributed (p-value = 0.07431 > 0.05). The fifth assumption is not satisfied.
+
+### Exercise 5
+
+Check for equality of variance
+
+Since the data shows non-normality, the Levene's Test is a good candidate for checking the equality of variance. 
+
+```{r, echo=FALSE}
+
+leveneTest(cancer_survival$Survival, cancer_survival$Organ)
+```
+
+The resulting p-value is 0.003271 thus, the null hypothesis of equal variances is rejected, i.e. there is a difference between the variances. The sixth assumption is not satisfied.
+
+### Exercise 6
+
+Transform your data and check for normality and equality of variance.
+
+First try with a square root transformation of data.
+
+```{r}
+#Tranform data (square root)
+cancer_survival$sqrt.survival <- sqrt(cancer_survival$Survival)
+#Check for normality
+with(cancer_survival,tapply(sqrt.survival, Organ,shapiro.test))
+ggplot(cancer_survival, aes(sqrt.survival, colour=Organ)) + geom_density()
+#Check for equality of variance
+leveneTest(cancer_survival$sqrt.survival, cancer_survival$Organ)
+```
+
+Shapiro-Wilk's test p-value for Stomach is <0.05
+Levene's Test is <0.05, thus the equal variances hypothesis is rejected.
+
+```{r}
+#Tranform data (log)
+cancer_survival$log.survival <- log(cancer_survival$Survival)
+#Check for normality
+with(cancer_survival,tapply(log.survival, Organ,shapiro.test))
+ggplot(cancer_survival, aes(log.survival, colour=Organ)) + geom_density()
+#Check for equality of variance
+leveneTest(cancer_survival$log.survival, cancer_survival$Organ)
+```
+Shapiro-Wilk's test p-value for Breast is < 0.05 (Breast group is not normal distribuited)
+Levene's Test p-value is >0.05, the equal variances hypothesis is not rejected 
+
+```{r}
+#Tranform data (reciprocal transformation)
+cancer_survival$reciprocal.survival <- 1/cancer_survival$Survival
+#Check for normality
+with(cancer_survival,tapply(reciprocal.survival, Organ,shapiro.test))
+ggplot(cancer_survival, aes(reciprocal.survival, colour=Organ)) + geom_density()
+#Check for equality of variance
+leveneTest(cancer_survival$reciprocal.survival, cancer_survival$Organ)
+```
+Breast, bronchus, colon and stomach groups are not normal distribuited
+Levene's Test p-value is >0.05
+
+Turns out that an ln is a good transformation, as confirmed by a Box-Cox linearity plot of our data:
+```{r}
+boxCox(Survival ~ Organ, data= cancer_survival)
+```
+
+Unfortunately the fifth assumption is still not satisfied since the Breast group is not normal distribuited after the log transformation.
+
+### Exercise 7
+
+Run one way ANOVA test
+
+```{r}
+summary(aov(log.survival ~ Organ, data = cancer_survival))
+```
+
+The p-value is less than 0.05, thus we reject the null hypothesis of equal means for all cancer groups.
+
+```{r}
+pairwise.t.test(cancer_survival$log.survival, cancer_survival$Organ, p.adjust.method = "bonferroni")
+```
+
+Ovary-Breast, Ovary-Colon and Stomach-Bronchus pairs have similar means.
+
+### Exercise 8
+
+Perform a Tukey HSD post hoc test
+
+```{r}
+TukeyHSD(aov(log.survival ~ Organ, data = cancer_survival), conf.level = 0.95)
+```
+
+Ovary-Breast, Stomach-Bronchus and Ovary-Colon means are very similar, a confirmation of the results obtained with the pairwise t test using the Bonferroni correction.
+
+### Exercise 9
+
+Interpret results
+
+Interpretation after each exercise.
+
+### Exercise 10
+
+Use a Kruskal-Wallis test
+
+```{r}
+kruskal.test(log.survival~Organ, data=cancer_survival)
+```
+
+With such a small p-value resulting from the Krustal-Wallis test, the null hypothesis that the medians of all cancer groups are equal is rejected. This is consistent with previous results.
