@@ -2,9 +2,10 @@
 title: "One Way Analysis of Variance Exercises"
 author: "Danilo Ascione"
 date: "10/17/2016"
-output: 
-  html_document: 
-    keep_md: yes
+output:
+  github_document:
+    html_preview: no
+  html_notebook: default
 ---
 
 ```{r setup, include=FALSE}
@@ -76,6 +77,9 @@ Check for normality using Shapiro.wilk test
 
 ```{r, echo=FALSE}
 with(cancer_survival,tapply(Survival, Organ,shapiro.test))
+```
+
+```{r, echo=FALSE}
 ggplot(cancer_survival, aes(Survival, colour=Organ)) + geom_density()
 ```
 
@@ -88,7 +92,6 @@ Check for equality of variance
 Since the data shows non-normality, the Levene's Test is a good candidate for checking the equality of variance. 
 
 ```{r, echo=FALSE}
-
 leveneTest(cancer_survival$Survival, cancer_survival$Organ)
 ```
 
@@ -105,10 +108,17 @@ First try with a square root transformation of data.
 cancer_survival$sqrt.survival <- sqrt(cancer_survival$Survival)
 #Check for normality
 with(cancer_survival,tapply(sqrt.survival, Organ,shapiro.test))
+
+```
+```{r}
 ggplot(cancer_survival, aes(sqrt.survival, colour=Organ)) + geom_density()
+```
+```{r}
 #Check for equality of variance
 leveneTest(cancer_survival$sqrt.survival, cancer_survival$Organ)
 ```
+
+
 
 Shapiro-Wilk's test p-value for Stomach is <0.05
 Levene's Test is <0.05, thus the equal variances hypothesis is rejected.
@@ -118,27 +128,41 @@ Levene's Test is <0.05, thus the equal variances hypothesis is rejected.
 cancer_survival$log.survival <- log(cancer_survival$Survival)
 #Check for normality
 with(cancer_survival,tapply(log.survival, Organ,shapiro.test))
+
+```
+
+```{r}
 ggplot(cancer_survival, aes(log.survival, colour=Organ)) + geom_density()
+```
+
+Shapiro-Wilk's test p-value for Breast is < 0.05 (Breast group is not normal distribuited)
+Levene's Test p-value is >0.05, the equal variances hypothesis is not rejected 
+```{r}
 #Check for equality of variance
 leveneTest(cancer_survival$log.survival, cancer_survival$Organ)
 ```
-Shapiro-Wilk's test p-value for Breast is < 0.05 (Breast group is not normal distribuited)
-Levene's Test p-value is >0.05, the equal variances hypothesis is not rejected 
 
 ```{r}
 #Tranform data (reciprocal transformation)
 cancer_survival$reciprocal.survival <- 1/cancer_survival$Survival
 #Check for normality
 with(cancer_survival,tapply(reciprocal.survival, Organ,shapiro.test))
+
+```
+
+```{r}
 ggplot(cancer_survival, aes(reciprocal.survival, colour=Organ)) + geom_density()
+```
+
+Breast, bronchus, colon and stomach groups are not normal distribuited
+Levene's Test p-value is >0.05
+```{r}
 #Check for equality of variance
 leveneTest(cancer_survival$reciprocal.survival, cancer_survival$Organ)
 ```
-Breast, bronchus, colon and stomach groups are not normal distribuited
-Levene's Test p-value is >0.05
 
 Turns out that an ln is a good transformation, as confirmed by a Box-Cox linearity plot of our data:
-```{r}
+```{r, message=TRUE, warning=FALSE}
 boxCox(Survival ~ Organ, data= cancer_survival)
 ```
 
