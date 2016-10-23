@@ -2,7 +2,9 @@
 title: "One Way Analysis of Variance Exercises"
 author: "Danilo Ascione"
 date: "10/17/2016"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
 ---
 
 ```{r setup, include=FALSE}
